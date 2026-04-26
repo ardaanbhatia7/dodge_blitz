@@ -299,22 +299,22 @@ module display_controller(
 	assign blink = slow_counter[22];
 	assign game_over_overlay_on = game_over && video_on && (pixel_x[2] ^ pixel_y[2]);
 	assign game_over_panel_fill_on = game_over && video_on &&
-	                                 (pixel_x >= 10'd140) && (pixel_x < 10'd500) &&
+	                                 (pixel_x >= 10'd70) && (pixel_x < 10'd570) &&
 	                                 (pixel_y >= 10'd130) && (pixel_y < 10'd350);
 	assign game_over_panel_border_on = game_over_panel_fill_on &&
-	                                   ((pixel_x < 10'd148) || (pixel_x >= 10'd492) ||
+	                                   ((pixel_x < 10'd78) || (pixel_x >= 10'd562) ||
 	                                    (pixel_y < 10'd138) || (pixel_y >= 10'd342));
 	assign game_over_panel_inner_border_on = game_over_panel_fill_on &&
-	                                         ((pixel_x == 10'd160) || (pixel_x == 10'd479) ||
+	                                         ((pixel_x == 10'd90) || (pixel_x == 10'd549) ||
 	                                          (pixel_y == 10'd220) || (pixel_y == 10'd290));
 	assign game_over_title_on = game_over && video_on &&
-	                            text_pixel(pixel_x, pixel_y, 10'd182, 10'd155, 4'd6, 5'd0);
+	                            text_pixel(pixel_x, pixel_y, 10'd158, 10'd155, 4'd6, 5'd0);
 	assign game_over_score_label_on = game_over && video_on &&
-	                                  text_pixel(pixel_x, pixel_y, 10'd200, 10'd238, 4'd3, 5'd2);
+	                                  text_pixel(pixel_x, pixel_y, 10'd220, 10'd238, 4'd3, 5'd2);
 	assign game_over_score_value_on = game_over && video_on &&
-	                                  text_pixel(pixel_x, pixel_y, 10'd386, 10'd238, 4'd3, 5'd4);
+	                                  text_pixel(pixel_x, pixel_y, 10'd344, 10'd238, 4'd3, 5'd4);
 	assign game_over_reset_text_on = game_over && video_on &&
-	                                 text_pixel(pixel_x, pixel_y, 10'd182, 10'd306, 4'd3, 5'd5);
+	                                 text_pixel(pixel_x, pixel_y, 10'd176, 10'd306, 4'd3, 5'd5);
 	assign game_over_decor_on = game_over && video_on &&
 	                            (((pixel_x >= 10'd95) && (pixel_x < 10'd115) &&
 	                              (pixel_y >= 10'd82) && (pixel_y < 10'd102)) ||
@@ -326,10 +326,10 @@ module display_controller(
 	                              (pixel_y >= 10'd95) && (pixel_y < 10'd111)));
 	assign life_lost_flash_on = (life_flash_counter != 5'd0) && (game_state == STATE_PLAYING);
 	assign life_lost_box_on = life_lost_flash_on && video_on &&
-	                          (pixel_x >= 10'd206) && (pixel_x < 10'd434) &&
+	                          (pixel_x >= 10'd190) && (pixel_x < 10'd450) &&
 	                          (pixel_y >= 10'd205) && (pixel_y < 10'd247);
 	assign life_lost_text_on = life_lost_flash_on && video_on &&
-	                           text_pixel(pixel_x, pixel_y, 10'd218, 10'd216, 4'd3, 5'd3);
+	                           text_pixel(pixel_x, pixel_y, 10'd204, 10'd216, 4'd3, 5'd3);
 		
 	assign hSync = (hCount < 96) ? 1:0;
 	assign vSync = (vCount < 2) ? 1:0;
@@ -411,9 +411,7 @@ module display_controller(
 					endcase
 				5'd2:
 					case (index)
-						5'd0: text_char = "F"; 5'd1: text_char = "I"; 5'd2: text_char = "N"; 5'd3: text_char = "A"; 5'd4: text_char = "L"; 5'd5: text_char = " ";
-						5'd6: text_char = "S"; 5'd7: text_char = "C"; 5'd8: text_char = "O"; 5'd9: text_char = "R"; 5'd10: text_char = "E"; 5'd11: text_char = " ";
-						5'd12: text_char = "S"; 5'd13: text_char = "S"; 5'd14: text_char = "D"; default: text_char = " ";
+						5'd0: text_char = "S"; 5'd1: text_char = "C"; 5'd2: text_char = "O"; 5'd3: text_char = "R"; 5'd4: text_char = "E"; default: text_char = " ";
 					endcase
 				5'd3:
 					case (index)
