@@ -107,6 +107,16 @@ module display_controller(
 	wire life_lost_flash_on;
 	wire life_lost_text_on;
 	wire life_lost_box_on;
+	wire game_over_overlay_on;
+	wire game_over_panel_fill_on;
+	wire game_over_panel_border_on;
+	wire game_over_panel_inner_border_on;
+	wire game_over_title_on;
+	wire game_over_score_label_on;
+	wire game_over_score_value_on;
+	wire game_over_reset_text_on;
+	wire game_over_decor_on;
+	wire blink;
 	wire sprite_on;
 	wire [5:0] sprite_col;
 	wire [5:0] sprite_row;
@@ -124,7 +134,16 @@ module display_controller(
 	reg life_lost_text_on_d;
 	reg life_lost_box_on_d;
 	reg game_over_d;
-	reg game_over_text_on_d;
+	reg game_over_overlay_on_d;
+	reg game_over_panel_fill_on_d;
+	reg game_over_panel_border_on_d;
+	reg game_over_panel_inner_border_on_d;
+	reg game_over_title_on_d;
+	reg game_over_score_label_on_d;
+	reg game_over_score_value_on_d;
+	reg game_over_reset_text_on_d;
+	reg game_over_decor_on_d;
+	reg blink_d;
 	reg [11:0] theme_background_rgb_d;
 	reg [1:0] selected_theme_d;
 	wire [11:0] theme_background_rgb;
@@ -223,7 +242,16 @@ module display_controller(
 		life_lost_text_on_d = 1'b0;
 		life_lost_box_on_d = 1'b0;
 		game_over_d = 1'b0;
-		game_over_text_on_d = 1'b0;
+		game_over_overlay_on_d = 1'b0;
+		game_over_panel_fill_on_d = 1'b0;
+		game_over_panel_border_on_d = 1'b0;
+		game_over_panel_inner_border_on_d = 1'b0;
+		game_over_title_on_d = 1'b0;
+		game_over_score_label_on_d = 1'b0;
+		game_over_score_value_on_d = 1'b0;
+		game_over_reset_text_on_d = 1'b0;
+		game_over_decor_on_d = 1'b0;
+		blink_d = 1'b0;
 		theme_background_rgb_d = BLACK;
 		selected_theme_d = THEME_SPACE;
 		for (i = 0; i < 8; i = i + 1)
@@ -268,10 +296,34 @@ module display_controller(
 	wire life1_on = video_on && (lives > 2'd1) && heart_pixel(pixel_x, pixel_y, 10'd600, 10'd10);
 	wire life2_on = video_on && (lives > 2'd2) && heart_pixel(pixel_x, pixel_y, 10'd620, 10'd10);
 	wire lives_on = life0_on || life1_on || life2_on;
-	wire game_over_text_on = game_over && video_on &&
-	                         (text_pixel(pixel_x, pixel_y, 10'd236, 10'd145, 4'd4, 5'd0) ||
-	                          text_pixel(pixel_x, pixel_y, 10'd148, 10'd215, 4'd3, 5'd1) ||
-	                          text_pixel(pixel_x, pixel_y, 10'd172, 10'd265, 4'd3, 5'd2));
+	assign blink = slow_counter[22];
+	assign game_over_overlay_on = game_over && video_on && (pixel_x[2] ^ pixel_y[2]);
+	assign game_over_panel_fill_on = game_over && video_on &&
+	                                 (pixel_x >= 10'd140) && (pixel_x < 10'd500) &&
+	                                 (pixel_y >= 10'd130) && (pixel_y < 10'd350);
+	assign game_over_panel_border_on = game_over_panel_fill_on &&
+	                                   ((pixel_x < 10'd148) || (pixel_x >= 10'd492) ||
+	                                    (pixel_y < 10'd138) || (pixel_y >= 10'd342));
+	assign game_over_panel_inner_border_on = game_over_panel_fill_on &&
+	                                         ((pixel_x == 10'd160) || (pixel_x == 10'd479) ||
+	                                          (pixel_y == 10'd220) || (pixel_y == 10'd290));
+	assign game_over_title_on = game_over && video_on &&
+	                            text_pixel(pixel_x, pixel_y, 10'd182, 10'd155, 4'd6, 5'd0);
+	assign game_over_score_label_on = game_over && video_on &&
+	                                  text_pixel(pixel_x, pixel_y, 10'd200, 10'd238, 4'd3, 5'd2);
+	assign game_over_score_value_on = game_over && video_on &&
+	                                  text_pixel(pixel_x, pixel_y, 10'd386, 10'd238, 4'd3, 5'd4);
+	assign game_over_reset_text_on = game_over && video_on &&
+	                                 text_pixel(pixel_x, pixel_y, 10'd182, 10'd306, 4'd3, 5'd5);
+	assign game_over_decor_on = game_over && video_on &&
+	                            (((pixel_x >= 10'd95) && (pixel_x < 10'd115) &&
+	                              (pixel_y >= 10'd82) && (pixel_y < 10'd102)) ||
+	                             ((pixel_x >= 10'd525) && (pixel_x < 10'd545) &&
+	                              (pixel_y >= 10'd385) && (pixel_y < 10'd405)) ||
+	                             ((pixel_x >= 10'd70) && (pixel_x < 10'd86) &&
+	                              (pixel_y >= 10'd365) && (pixel_y < 10'd381)) ||
+	                             ((pixel_x >= 10'd555) && (pixel_x < 10'd571) &&
+	                              (pixel_y >= 10'd95) && (pixel_y < 10'd111)));
 	assign life_lost_flash_on = (life_flash_counter != 5'd0) && (game_state == STATE_PLAYING);
 	assign life_lost_box_on = life_lost_flash_on && video_on &&
 	                          (pixel_x >= 10'd206) && (pixel_x < 10'd434) &&
@@ -307,7 +359,36 @@ module display_controller(
 				8'h55: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
 				8'h56: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b01010; default: glyph_row = 5'b00100; endcase
 				8'h59: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b01010; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b00100; endcase
+				8'h30: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10011; 3'd3: glyph_row = 5'b10101; 3'd4: glyph_row = 5'b11001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h31: case (row) 3'd0: glyph_row = 5'b00100; 3'd1: glyph_row = 5'b01100; 3'd2: glyph_row = 5'b00100; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b01110; endcase
+				8'h32: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b00001; 3'd3: glyph_row = 5'b00010; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b01000; default: glyph_row = 5'b11111; endcase
+				8'h33: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b00001; 3'd2: glyph_row = 5'b00001; 3'd3: glyph_row = 5'b01110; 3'd4: glyph_row = 5'b00001; 3'd5: glyph_row = 5'b00001; default: glyph_row = 5'b11110; endcase
+				8'h34: case (row) 3'd0: glyph_row = 5'b00010; 3'd1: glyph_row = 5'b00110; 3'd2: glyph_row = 5'b01010; 3'd3: glyph_row = 5'b10010; 3'd4: glyph_row = 5'b11111; 3'd5: glyph_row = 5'b00010; default: glyph_row = 5'b00010; endcase
+				8'h35: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b00001; 3'd5: glyph_row = 5'b00001; default: glyph_row = 5'b11110; endcase
+				8'h36: case (row) 3'd0: glyph_row = 5'b00110; 3'd1: glyph_row = 5'b01000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h37: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b00001; 3'd2: glyph_row = 5'b00010; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b01000; 3'd5: glyph_row = 5'b01000; default: glyph_row = 5'b01000; endcase
+				8'h38: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b01110; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h39: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b01111; 3'd4: glyph_row = 5'b00001; 3'd5: glyph_row = 5'b00010; default: glyph_row = 5'b11100; endcase
+				8'h3A: case (row) 3'd0: glyph_row = 5'b00000; 3'd1: glyph_row = 5'b00100; 3'd2: glyph_row = 5'b00100; 3'd3: glyph_row = 5'b00000; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b00000; endcase
 				default: glyph_row = 5'b00000;
+			endcase
+		end
+	endfunction
+
+	function [7:0] hex_char;
+		input [3:0] value;
+		begin
+			case (value)
+				4'd0: hex_char = "0";
+				4'd1: hex_char = "1";
+				4'd2: hex_char = "2";
+				4'd3: hex_char = "3";
+				4'd4: hex_char = "4";
+				4'd5: hex_char = "5";
+				4'd6: hex_char = "6";
+				4'd7: hex_char = "7";
+				4'd8: hex_char = "8";
+				default: hex_char = "9";
 			endcase
 		end
 	endfunction
@@ -338,6 +419,19 @@ module display_controller(
 					case (index)
 						5'd0: text_char = "Y"; 5'd1: text_char = "O"; 5'd2: text_char = "U"; 5'd3: text_char = " "; 5'd4: text_char = "L"; 5'd5: text_char = "O";
 						5'd6: text_char = "S"; 5'd7: text_char = "T"; 5'd8: text_char = " "; 5'd9: text_char = "L"; 5'd10: text_char = "I"; 5'd11: text_char = "F"; 5'd12: text_char = "E"; default: text_char = " ";
+					endcase
+				5'd4:
+					case (index)
+						5'd0: text_char = hex_char((score / 16'd1000) % 16'd10);
+						5'd1: text_char = hex_char((score / 16'd100) % 16'd10);
+						5'd2: text_char = hex_char((score / 16'd10) % 16'd10);
+						5'd3: text_char = hex_char(score % 16'd10);
+						default: text_char = " ";
+					endcase
+				5'd5:
+					case (index)
+						5'd0: text_char = "B"; 5'd1: text_char = "T"; 5'd2: text_char = "N"; 5'd3: text_char = " "; 5'd4: text_char = "C"; 5'd5: text_char = ":";
+						5'd6: text_char = " "; 5'd7: text_char = "R"; 5'd8: text_char = "E"; 5'd9: text_char = "S"; 5'd10: text_char = "E"; 5'd11: text_char = "T"; default: text_char = " ";
 					endcase
 				default: text_char = " ";
 			endcase
@@ -500,7 +594,16 @@ module display_controller(
 			life_lost_text_on_d <= 1'b0;
 			life_lost_box_on_d <= 1'b0;
 			game_over_d <= 1'b0;
-			game_over_text_on_d <= 1'b0;
+			game_over_overlay_on_d <= 1'b0;
+			game_over_panel_fill_on_d <= 1'b0;
+			game_over_panel_border_on_d <= 1'b0;
+			game_over_panel_inner_border_on_d <= 1'b0;
+			game_over_title_on_d <= 1'b0;
+			game_over_score_label_on_d <= 1'b0;
+			game_over_score_value_on_d <= 1'b0;
+			game_over_reset_text_on_d <= 1'b0;
+			game_over_decor_on_d <= 1'b0;
+			blink_d <= 1'b0;
 			theme_background_rgb_d <= BLACK;
 			selected_theme_d <= THEME_SPACE;
 			for (i = 0; i < 8; i = i + 1)
@@ -525,7 +628,16 @@ module display_controller(
 			life_lost_text_on_d <= life_lost_text_on;
 			life_lost_box_on_d <= life_lost_box_on;
 			game_over_d <= game_over;
-			game_over_text_on_d <= game_over_text_on;
+			game_over_overlay_on_d <= game_over_overlay_on;
+			game_over_panel_fill_on_d <= game_over_panel_fill_on;
+			game_over_panel_border_on_d <= game_over_panel_border_on;
+			game_over_panel_inner_border_on_d <= game_over_panel_inner_border_on;
+			game_over_title_on_d <= game_over_title_on;
+			game_over_score_label_on_d <= game_over_score_label_on;
+			game_over_score_value_on_d <= game_over_score_value_on;
+			game_over_reset_text_on_d <= game_over_reset_text_on;
+			game_over_decor_on_d <= game_over_decor_on;
+			blink_d <= blink;
 			theme_background_rgb_d <= theme_background_rgb;
 			selected_theme_d <= selected_theme;
 			if (game_tick && (life_flash_counter != 5'd0))
@@ -650,10 +762,22 @@ module display_controller(
 				rgb <= BLACK;
 			else if (game_over_d)
 				begin
-				if (game_over_text_on_d)
+				if (game_over_title_on_d)
+					rgb <= blink_d ? WHITE : RED;
+				else if (game_over_score_label_on_d || game_over_score_value_on_d || game_over_reset_text_on_d)
 					rgb <= WHITE;
+				else if (game_over_panel_border_on_d)
+					rgb <= blink_d ? RED : 12'h800;
+				else if (game_over_panel_inner_border_on_d)
+					rgb <= GRAY;
+				else if (game_over_decor_on_d)
+					rgb <= RED;
+				else if (game_over_panel_fill_on_d)
+					rgb <= 12'h111;
+				else if (game_over_overlay_on_d)
+					rgb <= 12'h000;
 				else
-					rgb <= BLACK;
+					rgb <= theme_background_rgb_d;
 				end
 			else if (theme_select_d && selected_selector_on_d)
 				rgb <= WHITE;
