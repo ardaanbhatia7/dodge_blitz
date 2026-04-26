@@ -53,9 +53,7 @@ module display_controller(
 	parameter H_VISIBLE_END = 10'd784;
 	parameter V_VISIBLE_START = 10'd35;
 	parameter V_VISIBLE_END = 10'd515;
-	parameter PLAYER_SIZE = 10'd20;
 	parameter PLAYER_Y = 10'd440;
-	parameter PLAYER_STEP = 10'd10;
 	parameter BLOCK_SIZE = 10'd20;
 	parameter BLOCK_STEP = 10'd2;
 	parameter BLOCK_MAX_STEP = 10'd8;
@@ -64,6 +62,10 @@ module display_controller(
 	parameter SPAWN_TICKS = 5'd16;
 	parameter SCORE_TICKS = 5'd20;
 	parameter PLAYER_SPEED = 10'd5;
+	parameter LIFE_FLASH_TICKS = 5'd10;
+
+	localparam SPRITE_W = 10'd40;
+	localparam SPRITE_H = 10'd40;
 
 	localparam THEME_SPACE  = 2'd0;
 	localparam THEME_SKY    = 2'd1;
@@ -87,6 +89,7 @@ module display_controller(
 	reg [2:0] spawn_index;
 	reg [4:0] spawn_counter;
 	reg [4:0] score_counter;
+	reg [4:0] life_flash_counter;
 	reg btnL_prev;
 	reg btnR_prev;
 	reg btnU_prev;
@@ -101,6 +104,29 @@ module display_controller(
 	wire selector2_on;
 	wire selector_on;
 	wire selected_selector_on;
+	wire life_lost_flash_on;
+	wire life_lost_text_on;
+	wire life_lost_box_on;
+	wire sprite_on;
+	wire [5:0] sprite_col;
+	wire [5:0] sprite_row;
+	wire [11:0] spaceship_color;
+	wire [11:0] bird_color;
+	wire [11:0] dog_color;
+	wire [11:0] selected_sprite_color;
+	reg sprite_on_d;
+	reg video_on_d;
+	reg lives_on_d;
+	reg block_on_d;
+	reg theme_select_d;
+	reg selected_selector_on_d;
+	reg selector_on_d;
+	reg life_lost_text_on_d;
+	reg life_lost_box_on_d;
+	reg game_over_d;
+	reg game_over_text_on_d;
+	reg [11:0] theme_background_rgb_d;
+	reg [1:0] selected_theme_d;
 	wire [11:0] theme_background_rgb;
 	integer i;
 
@@ -136,6 +162,35 @@ module display_controller(
 	                              ((selected_theme == THEME_SKY) && selector1_on) ||
 	                              ((selected_theme == THEME_GARDEN) && selector2_on);
 	assign theme_background_rgb = theme_rgb(pixel_x, pixel_y, selected_theme);
+	assign sprite_on = video_on &&
+	                   (pixel_x >= player_x) && (pixel_x < player_x + SPRITE_W) &&
+	                   (pixel_y >= PLAYER_Y) && (pixel_y < PLAYER_Y + SPRITE_H);
+	assign sprite_col = pixel_x - player_x;
+	assign sprite_row = pixel_y - PLAYER_Y;
+	assign selected_sprite_color = (selected_theme_d == THEME_SPACE) ? spaceship_color :
+	                               (selected_theme_d == THEME_SKY) ? bird_color :
+	                               dog_color;
+
+	spaceship_rom spaceship_player_rom(
+		.clk(clk),
+		.row(sprite_row),
+		.col(sprite_col),
+		.color_data(spaceship_color)
+	);
+
+	bird_rom bird_player_rom(
+		.clk(clk),
+		.row(sprite_row),
+		.col(sprite_col),
+		.color_data(bird_color)
+	);
+
+	dog_rom dog_player_rom(
+		.clk(clk),
+		.row(sprite_row),
+		.col(sprite_col),
+		.color_data(dog_color)
+	);
 
 	initial begin
 		hCount = 10'd0;
@@ -154,9 +209,23 @@ module display_controller(
 		spawn_index = 3'd0;
 		spawn_counter = 5'd0;
 		score_counter = 5'd0;
+		life_flash_counter = 5'd0;
 		btnL_prev = 1'b0;
 		btnR_prev = 1'b0;
 		btnU_prev = 1'b0;
+		sprite_on_d = 1'b0;
+		video_on_d = 1'b0;
+		lives_on_d = 1'b0;
+		block_on_d = 1'b0;
+		theme_select_d = 1'b0;
+		selected_selector_on_d = 1'b0;
+		selector_on_d = 1'b0;
+		life_lost_text_on_d = 1'b0;
+		life_lost_box_on_d = 1'b0;
+		game_over_d = 1'b0;
+		game_over_text_on_d = 1'b0;
+		theme_background_rgb_d = BLACK;
+		selected_theme_d = THEME_SPACE;
 		for (i = 0; i < 8; i = i + 1)
 			begin
 			block_x[i] = 10'd0;
@@ -169,9 +238,6 @@ module display_controller(
 	wire [9:0] pixel_y = vCount - V_VISIBLE_START;
 	wire video_on = (hCount >= H_VISIBLE_START) && (hCount < H_VISIBLE_END) &&
 	                (vCount >= V_VISIBLE_START) && (vCount < V_VISIBLE_END);
-	wire player_on = video_on &&
-	                 (pixel_x >= player_x) && (pixel_x < player_x + PLAYER_SIZE) &&
-	                 (pixel_y >= PLAYER_Y) && (pixel_y < PLAYER_Y + PLAYER_SIZE);
 	wire block0_on = video_on && active[0] &&
 	                 (pixel_x >= block_x[0]) && (pixel_x < block_x[0] + BLOCK_SIZE) &&
 	                 (pixel_y >= block_y[0]) && (pixel_y < block_y[0] + BLOCK_SIZE);
@@ -198,20 +264,20 @@ module display_controller(
 	                 (pixel_y >= block_y[7]) && (pixel_y < block_y[7] + BLOCK_SIZE);
 	wire block_on = block0_on || block1_on || block2_on || block3_on ||
 	                block4_on || block5_on || block6_on || block7_on;
-	wire life0_on = video_on && (lives > 2'd0) &&
-	                (pixel_x >= 10'd580) && (pixel_x < 10'd592) &&
-	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
-	wire life1_on = video_on && (lives > 2'd1) &&
-	                (pixel_x >= 10'd600) && (pixel_x < 10'd612) &&
-	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
-	wire life2_on = video_on && (lives > 2'd2) &&
-	                (pixel_x >= 10'd620) && (pixel_x < 10'd632) &&
-	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
+	wire life0_on = video_on && (lives > 2'd0) && heart_pixel(pixel_x, pixel_y, 10'd580, 10'd10);
+	wire life1_on = video_on && (lives > 2'd1) && heart_pixel(pixel_x, pixel_y, 10'd600, 10'd10);
+	wire life2_on = video_on && (lives > 2'd2) && heart_pixel(pixel_x, pixel_y, 10'd620, 10'd10);
 	wire lives_on = life0_on || life1_on || life2_on;
 	wire game_over_text_on = game_over && video_on &&
 	                         (text_pixel(pixel_x, pixel_y, 10'd236, 10'd145, 4'd4, 5'd0) ||
 	                          text_pixel(pixel_x, pixel_y, 10'd148, 10'd215, 4'd3, 5'd1) ||
 	                          text_pixel(pixel_x, pixel_y, 10'd172, 10'd265, 4'd3, 5'd2));
+	assign life_lost_flash_on = (life_flash_counter != 5'd0) && (game_state == STATE_PLAYING);
+	assign life_lost_box_on = life_lost_flash_on && video_on &&
+	                          (pixel_x >= 10'd206) && (pixel_x < 10'd434) &&
+	                          (pixel_y >= 10'd205) && (pixel_y < 10'd247);
+	assign life_lost_text_on = life_lost_flash_on && video_on &&
+	                           text_pixel(pixel_x, pixel_y, 10'd218, 10'd216, 4'd3, 5'd3);
 		
 	assign hSync = (hCount < 96) ? 1:0;
 	assign vSync = (vCount < 2) ? 1:0;
@@ -238,7 +304,9 @@ module display_controller(
 				8'h52: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10100; 3'd5: glyph_row = 5'b10010; default: glyph_row = 5'b10001; endcase
 				8'h53: case (row) 3'd0: glyph_row = 5'b01111; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b01110; 3'd4: glyph_row = 5'b00001; 3'd5: glyph_row = 5'b00001; default: glyph_row = 5'b11110; endcase
 				8'h54: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b00100; 3'd2: glyph_row = 5'b00100; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b00100; endcase
+				8'h55: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
 				8'h56: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b01010; default: glyph_row = 5'b00100; endcase
+				8'h59: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b01010; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b00100; endcase
 				default: glyph_row = 5'b00000;
 			endcase
 		end
@@ -265,6 +333,11 @@ module display_controller(
 						5'd0: text_char = "F"; 5'd1: text_char = "I"; 5'd2: text_char = "N"; 5'd3: text_char = "A"; 5'd4: text_char = "L"; 5'd5: text_char = " ";
 						5'd6: text_char = "S"; 5'd7: text_char = "C"; 5'd8: text_char = "O"; 5'd9: text_char = "R"; 5'd10: text_char = "E"; 5'd11: text_char = " ";
 						5'd12: text_char = "S"; 5'd13: text_char = "S"; 5'd14: text_char = "D"; default: text_char = " ";
+					endcase
+				5'd3:
+					case (index)
+						5'd0: text_char = "Y"; 5'd1: text_char = "O"; 5'd2: text_char = "U"; 5'd3: text_char = " "; 5'd4: text_char = "L"; 5'd5: text_char = "O";
+						5'd6: text_char = "S"; 5'd7: text_char = "T"; 5'd8: text_char = " "; 5'd9: text_char = "L"; 5'd10: text_char = "I"; 5'd11: text_char = "F"; 5'd12: text_char = "E"; default: text_char = " ";
 					endcase
 				default: text_char = " ";
 			endcase
@@ -302,6 +375,38 @@ module display_controller(
 				end
 			else
 				text_pixel = 1'b0;
+		end
+	endfunction
+
+	function heart_pixel;
+		input [9:0] x;
+		input [9:0] y;
+		input [9:0] origin_x;
+		input [9:0] origin_y;
+		reg [3:0] rel_x;
+		reg [3:0] rel_y;
+		begin
+			if ((x >= origin_x) && (x < origin_x + 10'd12) &&
+			    (y >= origin_y) && (y < origin_y + 10'd12))
+				begin
+				rel_x = x - origin_x;
+				rel_y = y - origin_y;
+				case (rel_y)
+					4'd0: heart_pixel = ((rel_x >= 4'd2) && (rel_x <= 4'd4)) || ((rel_x >= 4'd7) && (rel_x <= 4'd9));
+					4'd1: heart_pixel = ((rel_x >= 4'd1) && (rel_x <= 4'd5)) || ((rel_x >= 4'd6) && (rel_x <= 4'd10));
+					4'd2: heart_pixel = (rel_x >= 4'd0) && (rel_x <= 4'd11);
+					4'd3: heart_pixel = (rel_x >= 4'd0) && (rel_x <= 4'd11);
+					4'd4: heart_pixel = (rel_x >= 4'd1) && (rel_x <= 4'd10);
+					4'd5: heart_pixel = (rel_x >= 4'd1) && (rel_x <= 4'd10);
+					4'd6: heart_pixel = (rel_x >= 4'd2) && (rel_x <= 4'd9);
+					4'd7: heart_pixel = (rel_x >= 4'd3) && (rel_x <= 4'd8);
+					4'd8: heart_pixel = (rel_x >= 4'd4) && (rel_x <= 4'd7);
+					4'd9: heart_pixel = (rel_x >= 4'd5) && (rel_x <= 4'd6);
+					default: heart_pixel = 1'b0;
+				endcase
+				end
+			else
+				heart_pixel = 1'b0;
 		end
 	endfunction
 
@@ -381,9 +486,23 @@ module display_controller(
 			spawn_index <= 3'd0;
 			spawn_counter <= 5'd0;
 			score_counter <= 5'd0;
+			life_flash_counter <= 5'd0;
 			btnL_prev <= 1'b0;
 			btnR_prev <= 1'b0;
 			btnU_prev <= 1'b0;
+			sprite_on_d <= 1'b0;
+			video_on_d <= 1'b0;
+			lives_on_d <= 1'b0;
+			block_on_d <= 1'b0;
+			theme_select_d <= 1'b0;
+			selected_selector_on_d <= 1'b0;
+			selector_on_d <= 1'b0;
+			life_lost_text_on_d <= 1'b0;
+			life_lost_box_on_d <= 1'b0;
+			game_over_d <= 1'b0;
+			game_over_text_on_d <= 1'b0;
+			theme_background_rgb_d <= BLACK;
+			selected_theme_d <= THEME_SPACE;
 			for (i = 0; i < 8; i = i + 1)
 				begin
 				block_x[i] <= 10'd0;
@@ -396,6 +515,21 @@ module display_controller(
 			btnL_prev <= btnL;
 			btnR_prev <= btnR;
 			btnU_prev <= btnU;
+			sprite_on_d <= sprite_on;
+			video_on_d <= video_on;
+			lives_on_d <= lives_on;
+			block_on_d <= block_on;
+			theme_select_d <= theme_select;
+			selected_selector_on_d <= selected_selector_on;
+			selector_on_d <= selector_on;
+			life_lost_text_on_d <= life_lost_text_on;
+			life_lost_box_on_d <= life_lost_box_on;
+			game_over_d <= game_over;
+			game_over_text_on_d <= game_over_text_on;
+			theme_background_rgb_d <= theme_background_rgb;
+			selected_theme_d <= selected_theme;
+			if (game_tick && (life_flash_counter != 5'd0))
+				life_flash_counter <= life_flash_counter - 5'd1;
 			pix_div <= pix_div + 2'd1;
 			pixel_tick <= (pix_div == 2'd3);
 			if (slow_counter == GAME_TICK_MAX - 23'd1)
@@ -466,10 +600,10 @@ module display_controller(
 					player_x <= player_x - PLAYER_SPEED;
 				else if (tilt_left)
 					player_x <= 10'd0;
-				else if (tilt_right && (player_x <= SCREEN_W - PLAYER_SIZE - PLAYER_SPEED))
+				else if (tilt_right && (player_x <= SCREEN_W - SPRITE_W - PLAYER_SPEED))
 					player_x <= player_x + PLAYER_SPEED;
 				else if (tilt_right)
-					player_x <= SCREEN_W - PLAYER_SIZE;
+					player_x <= SCREEN_W - SPRITE_W;
 				
 				if (spawn_counter == SPAWN_TICKS - 5'd1)
 					begin
@@ -495,13 +629,16 @@ module display_controller(
 							block_y[i] <= block_y[i] + block_fall_step;
 						
 						if ((player_x < block_x[i] + BLOCK_SIZE) &&
-						    (player_x + PLAYER_SIZE > block_x[i]) &&
+						    (player_x + SPRITE_W > block_x[i]) &&
 						    (PLAYER_Y < block_y[i] + BLOCK_SIZE) &&
-						    (PLAYER_Y + PLAYER_SIZE > block_y[i]))
+						    (PLAYER_Y + SPRITE_H > block_y[i]))
 							begin
 							active[i] <= 1'b0;
 							if (lives > 2'd0)
+								begin
 								lives <= lives - 2'd1;
+								life_flash_counter <= LIFE_FLASH_TICKS;
+								end
 							if (lives <= 2'd1)
 								game_state <= STATE_GAME_OVER;
 							end
@@ -509,29 +646,33 @@ module display_controller(
 					end
 				end
 			
-			if (!video_on)
+			if (!video_on_d)
 				rgb <= BLACK;
-			else if (game_over)
+			else if (game_over_d)
 				begin
-				if (game_over_text_on)
+				if (game_over_text_on_d)
 					rgb <= WHITE;
 				else
 					rgb <= BLACK;
 				end
-			else if (theme_select && selected_selector_on)
+			else if (theme_select_d && selected_selector_on_d)
 				rgb <= WHITE;
-			else if (theme_select && selector_on)
+			else if (theme_select_d && selector_on_d)
 				rgb <= GRAY;
-			else if (theme_select)
-				rgb <= theme_background_rgb;
-			else if (player_on)
-				rgb <= GREEN;
-			else if (block_on)
-				rgb <= RED;
-			else if (lives_on)
+			else if (theme_select_d)
+				rgb <= theme_background_rgb_d;
+			else if (life_lost_text_on_d)
 				rgb <= WHITE;
+			else if (life_lost_box_on_d)
+				rgb <= GREEN;
+			else if (lives_on_d)
+				rgb <= RED;
+			else if (block_on_d)
+				rgb <= RED;
+			else if (sprite_on_d && (selected_sprite_color != 12'hF0F))
+				rgb <= selected_sprite_color;
 			else
-				rgb <= theme_background_rgb;
+				rgb <= theme_background_rgb_d;
 			end
 		end	
 		
