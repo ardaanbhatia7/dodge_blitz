@@ -26,6 +26,9 @@ module display_controller(
 	input tilt_left,
 	input tilt_right,
 	input tilt_neutral,
+	input btnL,
+	input btnR,
+	input btnU,
 	input reset,
 	output hSync, vSync,
 	output reg bright,
@@ -39,6 +42,10 @@ module display_controller(
 	parameter RED   = 12'hF00;
 	parameter GREEN = 12'h0F0;
 	parameter WHITE = 12'hFFF;
+	parameter SKY_BLUE = 12'h6CF;
+	parameter LAWN_GREEN = 12'h2A3;
+	parameter YELLOW = 12'hFF0;
+	parameter GRAY = 12'h888;
 	
 	parameter SCREEN_W = 10'd640;
 	parameter SCREEN_H = 10'd480;
@@ -57,6 +64,14 @@ module display_controller(
 	parameter SPAWN_TICKS = 5'd16;
 	parameter SCORE_TICKS = 5'd20;
 	parameter PLAYER_SPEED = 10'd5;
+
+	localparam THEME_SPACE  = 2'd0;
+	localparam THEME_SKY    = 2'd1;
+	localparam THEME_GARDEN = 2'd2;
+
+	localparam STATE_THEME_SELECT = 2'd0;
+	localparam STATE_PLAYING      = 2'd1;
+	localparam STATE_GAME_OVER    = 2'd2;
 	
 	reg [1:0] pix_div;
 	reg pixel_tick;
@@ -67,20 +82,32 @@ module display_controller(
 	reg [9:0] block_y [0:7];
 	reg active [0:7];
 	reg [1:0] lives;
-	reg game_over;
+	reg [1:0] game_state;
+	reg [1:0] selected_theme;
 	reg [2:0] spawn_index;
 	reg [4:0] spawn_counter;
 	reg [4:0] score_counter;
+	reg btnL_prev;
+	reg btnR_prev;
+	reg btnU_prev;
 	wire [7:0] random_value;
 	wire [9:0] random_x_raw;
 	wire [9:0] random_block_x;
 	wire [9:0] block_fall_step;
+	wire game_over;
+	wire theme_select;
+	wire selector0_on;
+	wire selector1_on;
+	wire selector2_on;
+	wire selector_on;
+	wire selected_selector_on;
+	wire [11:0] theme_background_rgb;
 	integer i;
 
 	lfsr random_block_generator(
 		.clk(clk),
 		.reset(reset),
-		.enable(game_tick && !game_over),
+		.enable(game_tick && (game_state == STATE_PLAYING)),
 		.random(random_value)
 	);
 
@@ -93,6 +120,22 @@ module display_controller(
 	                         (score >= 16'd20) ? 10'd4 :
 	                         (score >= DIFFICULTY_SCORE_STEP) ? 10'd3 :
 	                         BLOCK_STEP;
+	assign game_over = (game_state == STATE_GAME_OVER);
+	assign theme_select = (game_state == STATE_THEME_SELECT);
+	assign selector0_on = video_on &&
+	                      (pixel_x >= 10'd278) && (pixel_x < 10'd298) &&
+	                      (pixel_y >= 10'd430) && (pixel_y < 10'd450);
+	assign selector1_on = video_on &&
+	                      (pixel_x >= 10'd310) && (pixel_x < 10'd330) &&
+	                      (pixel_y >= 10'd430) && (pixel_y < 10'd450);
+	assign selector2_on = video_on &&
+	                      (pixel_x >= 10'd342) && (pixel_x < 10'd362) &&
+	                      (pixel_y >= 10'd430) && (pixel_y < 10'd450);
+	assign selector_on = selector0_on || selector1_on || selector2_on;
+	assign selected_selector_on = ((selected_theme == THEME_SPACE) && selector0_on) ||
+	                              ((selected_theme == THEME_SKY) && selector1_on) ||
+	                              ((selected_theme == THEME_GARDEN) && selector2_on);
+	assign theme_background_rgb = theme_rgb(pixel_x, pixel_y, selected_theme);
 
 	initial begin
 		hCount = 10'd0;
@@ -106,10 +149,14 @@ module display_controller(
 		game_tick = 1'b0;
 		player_x = 10'd310;
 		lives = 2'd3;
-		game_over = 1'b0;
+		game_state = STATE_THEME_SELECT;
+		selected_theme = THEME_SPACE;
 		spawn_index = 3'd0;
 		spawn_counter = 5'd0;
 		score_counter = 5'd0;
+		btnL_prev = 1'b0;
+		btnR_prev = 1'b0;
+		btnU_prev = 1'b0;
 		for (i = 0; i < 8; i = i + 1)
 			begin
 			block_x[i] = 10'd0;
@@ -257,6 +304,62 @@ module display_controller(
 				text_pixel = 1'b0;
 		end
 	endfunction
+
+	function [11:0] theme_rgb;
+		input [9:0] x;
+		input [9:0] y;
+		input [1:0] theme;
+		begin
+			case (theme)
+				THEME_SPACE:
+					begin
+					if (((x[4:0] == 5'd3) && (y[5:0] == 6'd9)) ||
+					    ((x[6:1] == y[6:1]) && (x[3:0] == 4'd0)) ||
+					    ((x[7:2] + y[7:2]) == 6'd47))
+						theme_rgb = WHITE;
+					else if ((x >= 10'd520) && (x < 10'd570) &&
+					         (y >= 10'd55) && (y < 10'd105))
+						theme_rgb = 12'hCC8;
+					else
+						theme_rgb = 12'h001;
+					end
+				THEME_SKY:
+					begin
+					if ((x >= 10'd520) && (x < 10'd575) &&
+					    (y >= 10'd35) && (y < 10'd90))
+						theme_rgb = YELLOW;
+					else if (((x >= 10'd90) && (x < 10'd190) && (y >= 10'd75) && (y < 10'd105)) ||
+					         ((x >= 10'd120) && (x < 10'd165) && (y >= 10'd55) && (y < 10'd120)) ||
+					         ((x >= 10'd360) && (x < 10'd500) && (y >= 10'd120) && (y < 10'd150)) ||
+					         ((x >= 10'd400) && (x < 10'd455) && (y >= 10'd95) && (y < 10'd165)))
+						theme_rgb = WHITE;
+					else
+						theme_rgb = SKY_BLUE;
+					end
+				THEME_GARDEN:
+					begin
+					if (y >= 10'd360)
+						begin
+						if (((x[5:0] == 6'd12) || (x[5:0] == 6'd42)) &&
+						    (y >= 10'd390) && (y < 10'd430))
+							theme_rgb = 12'hF4F;
+						else
+							theme_rgb = LAWN_GREEN;
+						end
+					else if (((x >= 10'd70) && (x < 10'd95) && (y >= 10'd250) && (y < 10'd360)) ||
+					         ((x >= 10'd520) && (x < 10'd545) && (y >= 10'd245) && (y < 10'd360)))
+						theme_rgb = 12'h840;
+					else if (((x >= 10'd35) && (x < 10'd130) && (y >= 10'd205) && (y < 10'd265)) ||
+					         ((x >= 10'd485) && (x < 10'd580) && (y >= 10'd200) && (y < 10'd265)))
+						theme_rgb = 12'h0A0;
+					else
+						theme_rgb = SKY_BLUE;
+					end
+				default:
+					theme_rgb = BLACK;
+			endcase
+		end
+	endfunction
 	
 	always @(posedge clk)
 		begin
@@ -273,10 +376,14 @@ module display_controller(
 			game_tick <= 1'b0;
 			player_x <= 10'd310;
 			lives <= 2'd3;
-			game_over <= 1'b0;
+			game_state <= STATE_THEME_SELECT;
+			selected_theme <= THEME_SPACE;
 			spawn_index <= 3'd0;
 			spawn_counter <= 5'd0;
 			score_counter <= 5'd0;
+			btnL_prev <= 1'b0;
+			btnR_prev <= 1'b0;
+			btnU_prev <= 1'b0;
 			for (i = 0; i < 8; i = i + 1)
 				begin
 				block_x[i] <= 10'd0;
@@ -284,8 +391,11 @@ module display_controller(
 				active[i] <= 1'b0;
 				end
 			end
-		else
+			else
 			begin
+			btnL_prev <= btnL;
+			btnR_prev <= btnR;
+			btnU_prev <= btnU;
 			pix_div <= pix_div + 2'd1;
 			pixel_tick <= (pix_div == 2'd3);
 			if (slow_counter == GAME_TICK_MAX - 23'd1)
@@ -322,7 +432,27 @@ module display_controller(
 					bright <= 1'b0;
 				end
 			
-			if (game_tick && !game_over)
+			if (theme_select)
+				begin
+				if (btnL && !btnL_prev)
+					begin
+					if (selected_theme == THEME_SPACE)
+						selected_theme <= THEME_GARDEN;
+					else
+						selected_theme <= selected_theme - 2'd1;
+					end
+				else if (btnR && !btnR_prev)
+					begin
+					if (selected_theme == THEME_GARDEN)
+						selected_theme <= THEME_SPACE;
+					else
+						selected_theme <= selected_theme + 2'd1;
+					end
+				else if (btnU && !btnU_prev)
+					game_state <= STATE_PLAYING;
+				end
+
+			if (game_tick && (game_state == STATE_PLAYING))
 				begin
 				if (score_counter == SCORE_TICKS - 5'd1)
 					begin
@@ -373,7 +503,7 @@ module display_controller(
 							if (lives > 2'd0)
 								lives <= lives - 2'd1;
 							if (lives <= 2'd1)
-								game_over <= 1'b1;
+								game_state <= STATE_GAME_OVER;
 							end
 						end
 					end
@@ -388,6 +518,12 @@ module display_controller(
 				else
 					rgb <= BLACK;
 				end
+			else if (theme_select && selected_selector_on)
+				rgb <= WHITE;
+			else if (theme_select && selector_on)
+				rgb <= GRAY;
+			else if (theme_select)
+				rgb <= theme_background_rgb;
 			else if (player_on)
 				rgb <= GREEN;
 			else if (block_on)
@@ -395,7 +531,7 @@ module display_controller(
 			else if (lives_on)
 				rgb <= WHITE;
 			else
-				rgb <= BLACK;
+				rgb <= theme_background_rgb;
 			end
 		end	
 		

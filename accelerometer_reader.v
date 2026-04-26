@@ -40,8 +40,8 @@ module accelerometer_reader(
 
 	assign sampled_byte = {rx_shift[6:0], ACL_MISO};
 	assign current_tx_byte = tx_byte(transaction_read, byte_index);
-	assign tilt_right = (accel_y > ACCEL_DEADZONE_POS);
-	assign tilt_left = (accel_y < ACCEL_DEADZONE_NEG);
+	assign tilt_left = (accel_y > ACCEL_DEADZONE_POS);
+	assign tilt_right = (accel_y < ACCEL_DEADZONE_NEG);
 	assign tilt_neutral = !tilt_left && !tilt_right;
 
 	function [7:0] tx_byte;
