@@ -7,7 +7,7 @@ module accelerometer_reader(
 	output reg ACL_MOSI,
 	output reg ACL_SCLK,
 	output reg ACL_CSN,
-	output reg signed [15:0] accel_x,
+	output reg signed [15:0] accel_y,
 	output tilt_left,
 	output tilt_right,
 	output tilt_neutral
@@ -30,7 +30,7 @@ module accelerometer_reader(
 	reg [1:0] byte_index;
 	reg [2:0] bit_index;
 	reg [7:0] rx_shift;
-	reg [7:0] x_low;
+	reg [7:0] y_low;
 	reg transaction_read;
 	reg configured;
 	reg [16:0] read_wait;
@@ -40,8 +40,8 @@ module accelerometer_reader(
 
 	assign sampled_byte = {rx_shift[6:0], ACL_MISO};
 	assign current_tx_byte = tx_byte(transaction_read, byte_index);
-	assign tilt_right = (accel_x > ACCEL_DEADZONE_POS);
-	assign tilt_left = (accel_x < ACCEL_DEADZONE_NEG);
+	assign tilt_right = (accel_y > ACCEL_DEADZONE_POS);
+	assign tilt_left = (accel_y < ACCEL_DEADZONE_NEG);
 	assign tilt_neutral = !tilt_left && !tilt_right;
 
 	function [7:0] tx_byte;
@@ -52,7 +52,7 @@ module accelerometer_reader(
 				begin
 				case (index)
 					2'd0: tx_byte = 8'h0B;
-					2'd1: tx_byte = 8'h0E;
+					2'd1: tx_byte = 8'h10;
 					default: tx_byte = 8'h00;
 				endcase
 				end
@@ -73,14 +73,14 @@ module accelerometer_reader(
 		byte_index = 2'd0;
 		bit_index = 3'd7;
 		rx_shift = 8'd0;
-		x_low = 8'd0;
+		y_low = 8'd0;
 		transaction_read = 1'b0;
 		configured = 1'b0;
 		read_wait = 17'd0;
 		ACL_MOSI = 1'b0;
 		ACL_SCLK = 1'b0;
 		ACL_CSN = 1'b1;
-		accel_x = 16'sd0;
+		accel_y = 16'sd0;
 	end
 
 	always @(posedge clk)
@@ -92,14 +92,14 @@ module accelerometer_reader(
 			byte_index <= 2'd0;
 			bit_index <= 3'd7;
 			rx_shift <= 8'd0;
-			x_low <= 8'd0;
+			y_low <= 8'd0;
 			transaction_read <= 1'b0;
 			configured <= 1'b0;
 			read_wait <= 17'd0;
 			ACL_MOSI <= 1'b0;
 			ACL_SCLK <= 1'b0;
 			ACL_CSN <= 1'b1;
-			accel_x <= 16'sd0;
+			accel_y <= 16'sd0;
 			end
 		else
 			begin
@@ -150,9 +150,9 @@ module accelerometer_reader(
 						if (bit_index == 3'd0)
 							begin
 							if (transaction_read && (byte_index == 2'd2))
-								x_low <= sampled_byte;
+								y_low <= sampled_byte;
 							if (transaction_read && (byte_index == 2'd3))
-								accel_x <= {{4{sampled_byte[3]}}, sampled_byte[3:0], x_low};
+								accel_y <= {{4{sampled_byte[3]}}, sampled_byte[3:0], y_low};
 
 							if ((!transaction_read && (byte_index == 2'd2)) ||
 							    (transaction_read && (byte_index == 2'd3)))

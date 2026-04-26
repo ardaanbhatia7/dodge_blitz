@@ -49,7 +49,7 @@ module vga_top(
 	wire [6:0] ssdOut;
 	wire [3:0] anode;
 	wire [11:0] rgb;
-	wire signed [15:0] accel_x;
+	wire signed [15:0] accel_y;
 	wire tilt_left;
 	wire tilt_right;
 	wire tilt_neutral;
@@ -61,7 +61,7 @@ module vga_top(
 		.ACL_MOSI(ACL_MOSI),
 		.ACL_SCLK(ACL_SCLK),
 		.ACL_CSN(ACL_CSN),
-		.accel_x(accel_x),
+		.accel_y(accel_y),
 		.tilt_left(tilt_left),
 		.tilt_right(tilt_right),
 		.tilt_neutral(tilt_neutral)

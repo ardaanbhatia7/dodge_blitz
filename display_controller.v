@@ -51,6 +51,8 @@ module display_controller(
 	parameter PLAYER_STEP = 10'd10;
 	parameter BLOCK_SIZE = 10'd20;
 	parameter BLOCK_STEP = 10'd2;
+	parameter BLOCK_MAX_STEP = 10'd8;
+	parameter DIFFICULTY_SCORE_STEP = 16'd10;
 	parameter GAME_TICK_MAX = 23'd5000000;
 	parameter SPAWN_TICKS = 5'd16;
 	parameter SCORE_TICKS = 5'd20;
@@ -72,6 +74,7 @@ module display_controller(
 	wire [7:0] random_value;
 	wire [9:0] random_x_raw;
 	wire [9:0] random_block_x;
+	wire [9:0] block_fall_step;
 	integer i;
 
 	lfsr random_block_generator(
@@ -83,6 +86,13 @@ module display_controller(
 
 	assign random_x_raw = {1'b0, random_value, 1'b0} + {2'b00, random_value};
 	assign random_block_x = (random_x_raw > SCREEN_W - BLOCK_SIZE) ? random_x_raw - 10'd160 : random_x_raw;
+	assign block_fall_step = (score >= 16'd60) ? BLOCK_MAX_STEP :
+	                         (score >= 16'd50) ? 10'd7 :
+	                         (score >= 16'd40) ? 10'd6 :
+	                         (score >= 16'd30) ? 10'd5 :
+	                         (score >= 16'd20) ? 10'd4 :
+	                         (score >= DIFFICULTY_SCORE_STEP) ? 10'd3 :
+	                         BLOCK_STEP;
 
 	initial begin
 		hCount = 10'd0;
@@ -352,7 +362,7 @@ module display_controller(
 						if (block_y[i] >= SCREEN_H - BLOCK_SIZE)
 							active[i] <= 1'b0;
 						else
-							block_y[i] <= block_y[i] + BLOCK_STEP;
+							block_y[i] <= block_y[i] + block_fall_step;
 						
 						if ((player_x < block_x[i] + BLOCK_SIZE) &&
 						    (player_x + PLAYER_SIZE > block_x[i]) &&
