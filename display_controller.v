@@ -23,8 +23,9 @@
 //////////////////////////////////////////////////////////////////////////////////
 module display_controller(
 	input clk,
-	input btnL,
-	input btnR,
+	input tilt_left,
+	input tilt_right,
+	input tilt_neutral,
 	input reset,
 	output hSync, vSync,
 	output reg bright,
@@ -53,6 +54,7 @@ module display_controller(
 	parameter GAME_TICK_MAX = 23'd5000000;
 	parameter SPAWN_TICKS = 5'd16;
 	parameter SCORE_TICKS = 5'd20;
+	parameter PLAYER_SPEED = 10'd5;
 	
 	reg [1:0] pix_div;
 	reg pixel_tick;
@@ -149,9 +151,102 @@ module display_controller(
 	                (pixel_x >= 10'd620) && (pixel_x < 10'd632) &&
 	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
 	wire lives_on = life0_on || life1_on || life2_on;
+	wire game_over_text_on = game_over && video_on &&
+	                         (text_pixel(pixel_x, pixel_y, 10'd236, 10'd145, 4'd4, 5'd0) ||
+	                          text_pixel(pixel_x, pixel_y, 10'd148, 10'd215, 4'd3, 5'd1) ||
+	                          text_pixel(pixel_x, pixel_y, 10'd172, 10'd265, 4'd3, 5'd2));
 		
 	assign hSync = (hCount < 96) ? 1:0;
 	assign vSync = (vCount < 2) ? 1:0;
+
+	function [4:0] glyph_row;
+		input [7:0] ch;
+		input [2:0] row;
+		begin
+			case (ch)
+				8'h20: glyph_row = 5'b00000;
+				8'h41: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b11111; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b10001; endcase
+				8'h42: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b11110; endcase
+				8'h43: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b10000; 3'd4: glyph_row = 5'b10000; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h44: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b11110; endcase
+				8'h45: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10000; 3'd5: glyph_row = 5'b10000; default: glyph_row = 5'b11111; endcase
+				8'h46: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10000; 3'd5: glyph_row = 5'b10000; default: glyph_row = 5'b10000; endcase
+				8'h47: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b10111; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h49: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b00100; 3'd2: glyph_row = 5'b00100; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b11111; endcase
+				8'h4C: case (row) 3'd0: glyph_row = 5'b10000; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b10000; 3'd4: glyph_row = 5'b10000; 3'd5: glyph_row = 5'b10000; default: glyph_row = 5'b11111; endcase
+				8'h4D: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b11011; 3'd2: glyph_row = 5'b10101; 3'd3: glyph_row = 5'b10101; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b10001; endcase
+				8'h4E: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b11001; 3'd2: glyph_row = 5'b10101; 3'd3: glyph_row = 5'b10011; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b10001; endcase
+				8'h4F: case (row) 3'd0: glyph_row = 5'b01110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b10001; default: glyph_row = 5'b01110; endcase
+				8'h50: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10000; 3'd5: glyph_row = 5'b10000; default: glyph_row = 5'b10000; endcase
+				8'h52: case (row) 3'd0: glyph_row = 5'b11110; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b11110; 3'd4: glyph_row = 5'b10100; 3'd5: glyph_row = 5'b10010; default: glyph_row = 5'b10001; endcase
+				8'h53: case (row) 3'd0: glyph_row = 5'b01111; 3'd1: glyph_row = 5'b10000; 3'd2: glyph_row = 5'b10000; 3'd3: glyph_row = 5'b01110; 3'd4: glyph_row = 5'b00001; 3'd5: glyph_row = 5'b00001; default: glyph_row = 5'b11110; endcase
+				8'h54: case (row) 3'd0: glyph_row = 5'b11111; 3'd1: glyph_row = 5'b00100; 3'd2: glyph_row = 5'b00100; 3'd3: glyph_row = 5'b00100; 3'd4: glyph_row = 5'b00100; 3'd5: glyph_row = 5'b00100; default: glyph_row = 5'b00100; endcase
+				8'h56: case (row) 3'd0: glyph_row = 5'b10001; 3'd1: glyph_row = 5'b10001; 3'd2: glyph_row = 5'b10001; 3'd3: glyph_row = 5'b10001; 3'd4: glyph_row = 5'b10001; 3'd5: glyph_row = 5'b01010; default: glyph_row = 5'b00100; endcase
+				default: glyph_row = 5'b00000;
+			endcase
+		end
+	endfunction
+
+	function [7:0] text_char;
+		input [4:0] line;
+		input [4:0] index;
+		begin
+			case (line)
+				5'd0:
+					case (index)
+						5'd0: text_char = "G"; 5'd1: text_char = "A"; 5'd2: text_char = "M"; 5'd3: text_char = "E"; 5'd4: text_char = " ";
+						5'd5: text_char = "O"; 5'd6: text_char = "V"; 5'd7: text_char = "E"; 5'd8: text_char = "R"; default: text_char = " ";
+					endcase
+				5'd1:
+					case (index)
+						5'd0: text_char = "P"; 5'd1: text_char = "R"; 5'd2: text_char = "E"; 5'd3: text_char = "S"; 5'd4: text_char = "S"; 5'd5: text_char = " ";
+						5'd6: text_char = "C"; 5'd7: text_char = "E"; 5'd8: text_char = "N"; 5'd9: text_char = "T"; 5'd10: text_char = "R"; 5'd11: text_char = "E"; 5'd12: text_char = " ";
+						5'd13: text_char = "B"; 5'd14: text_char = "T"; 5'd15: text_char = "N"; default: text_char = " ";
+					endcase
+				5'd2:
+					case (index)
+						5'd0: text_char = "F"; 5'd1: text_char = "I"; 5'd2: text_char = "N"; 5'd3: text_char = "A"; 5'd4: text_char = "L"; 5'd5: text_char = " ";
+						5'd6: text_char = "S"; 5'd7: text_char = "C"; 5'd8: text_char = "O"; 5'd9: text_char = "R"; 5'd10: text_char = "E"; 5'd11: text_char = " ";
+						5'd12: text_char = "S"; 5'd13: text_char = "S"; 5'd14: text_char = "D"; default: text_char = " ";
+					endcase
+				default: text_char = " ";
+			endcase
+		end
+	endfunction
+
+	function text_pixel;
+		input [9:0] x;
+		input [9:0] y;
+		input [9:0] origin_x;
+		input [9:0] origin_y;
+		input [3:0] scale;
+		input [4:0] line;
+		reg [9:0] rel_x;
+		reg [9:0] rel_y;
+		reg [4:0] char_index;
+		reg [2:0] glyph_x;
+		reg [2:0] glyph_y;
+		reg [4:0] row_bits;
+		begin
+			if ((x >= origin_x) && (y >= origin_y) &&
+			    (x < origin_x + (16 * 6 * scale)) &&
+			    (y < origin_y + (7 * scale)))
+				begin
+				rel_x = x - origin_x;
+				rel_y = y - origin_y;
+				char_index = rel_x / (6 * scale);
+				glyph_x = (rel_x % (6 * scale)) / scale;
+				glyph_y = rel_y / scale;
+				row_bits = glyph_row(text_char(line, char_index), glyph_y);
+				if (glyph_x < 3'd5)
+					text_pixel = row_bits[4 - glyph_x];
+				else
+					text_pixel = 1'b0;
+				end
+			else
+				text_pixel = 1'b0;
+		end
+	endfunction
 	
 	always @(posedge clk)
 		begin
@@ -227,13 +322,13 @@ module display_controller(
 				else
 					score_counter <= score_counter + 5'd1;
 				
-				if (btnL && (player_x >= PLAYER_STEP))
-					player_x <= player_x - PLAYER_STEP;
-				else if (btnL)
+				if (tilt_left && (player_x >= PLAYER_SPEED))
+					player_x <= player_x - PLAYER_SPEED;
+				else if (tilt_left)
 					player_x <= 10'd0;
-				else if (btnR && (player_x <= SCREEN_W - PLAYER_SIZE - PLAYER_STEP))
-					player_x <= player_x + PLAYER_STEP;
-				else if (btnR)
+				else if (tilt_right && (player_x <= SCREEN_W - PLAYER_SIZE - PLAYER_SPEED))
+					player_x <= player_x + PLAYER_SPEED;
+				else if (tilt_right)
 					player_x <= SCREEN_W - PLAYER_SIZE;
 				
 				if (spawn_counter == SPAWN_TICKS - 5'd1)
@@ -276,6 +371,13 @@ module display_controller(
 			
 			if (!video_on)
 				rgb <= BLACK;
+			else if (game_over)
+				begin
+				if (game_over_text_on)
+					rgb <= WHITE;
+				else
+					rgb <= BLACK;
+				end
 			else if (player_on)
 				rgb <= GREEN;
 			else if (block_on)

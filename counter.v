@@ -28,8 +28,15 @@ module counter(
 	reg [20:0] refresh;
 	reg [3:0] LEDNumber;
 	wire [1:0] LEDCounter;
-	
-	
+
+	initial begin
+		refresh = 21'd0;
+		LEDNumber = 4'd0;
+		anode = 4'b1110;
+		ssdOut = 7'b0000001;
+	end
+
+
 	always @ (posedge clk)
 	begin
 		refresh <= refresh + 21'd1;

@@ -59,11 +59,33 @@ set_property PACKAGE_PIN N17 [get_ports BtnC]
 set_property PACKAGE_PIN M18 [get_ports BtnU] 
 	set_property IOSTANDARD LVCMOS33 [get_ports BtnU]
 
-set_property PACKAGE_PIN P17 [get_ports BtnL]
-	set_property IOSTANDARD LVCMOS33 [get_ports BtnL]
+# BtnL/BtnR are not used by the accelerometer-controlled game.
+#set_property PACKAGE_PIN P17 [get_ports BtnL]
+#	set_property IOSTANDARD LVCMOS33 [get_ports BtnL]
+#
+#set_property PACKAGE_PIN M17 [get_ports BtnR]
+#	set_property IOSTANDARD LVCMOS33 [get_ports BtnR]
 
-set_property PACKAGE_PIN M17 [get_ports BtnR]
-	set_property IOSTANDARD LVCMOS33 [get_ports BtnR]
+set_property PACKAGE_PIN H17 [get_ports {LED[0]}]
+	set_property IOSTANDARD LVCMOS33 [get_ports {LED[0]}]
+
+set_property PACKAGE_PIN K15 [get_ports {LED[1]}]
+	set_property IOSTANDARD LVCMOS33 [get_ports {LED[1]}]
+
+set_property PACKAGE_PIN J13 [get_ports {LED[2]}]
+	set_property IOSTANDARD LVCMOS33 [get_ports {LED[2]}]
+
+set_property PACKAGE_PIN E15 [get_ports ACL_MISO]
+	set_property IOSTANDARD LVCMOS33 [get_ports ACL_MISO]
+
+set_property PACKAGE_PIN F14 [get_ports ACL_MOSI]
+	set_property IOSTANDARD LVCMOS33 [get_ports ACL_MOSI]
+
+set_property PACKAGE_PIN F15 [get_ports ACL_SCLK]
+	set_property IOSTANDARD LVCMOS33 [get_ports ACL_SCLK]
+
+set_property PACKAGE_PIN D15 [get_ports ACL_CSN]
+	set_property IOSTANDARD LVCMOS33 [get_ports ACL_CSN]
 
 set_property PACKAGE_PIN A3 [get_ports {vgaR[0]}]				
 	set_property IOSTANDARD LVCMOS33 [get_ports {vgaR[0]}]

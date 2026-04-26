@@ -25,9 +25,12 @@ module vga_top(
 	input ClkPort,
 	input BtnC,
 	input BtnU,
-	input BtnL,
-	input BtnR,
-	
+	input ACL_MISO,
+	output ACL_MOSI,
+	output ACL_SCLK,
+	output ACL_CSN,
+	output [2:0] LED,
+
 	//VGA signal
 	output hSync, vSync,
 	output [3:0] vgaR, vgaG, vgaB,
@@ -46,10 +49,29 @@ module vga_top(
 	wire [6:0] ssdOut;
 	wire [3:0] anode;
 	wire [11:0] rgb;
+	wire signed [15:0] accel_x;
+	wire tilt_left;
+	wire tilt_right;
+	wire tilt_neutral;
+
+	accelerometer_reader accel(
+		.clk(ClkPort),
+		.reset(BtnC),
+		.ACL_MISO(ACL_MISO),
+		.ACL_MOSI(ACL_MOSI),
+		.ACL_SCLK(ACL_SCLK),
+		.ACL_CSN(ACL_CSN),
+		.accel_x(accel_x),
+		.tilt_left(tilt_left),
+		.tilt_right(tilt_right),
+		.tilt_neutral(tilt_neutral)
+	);
+
 	display_controller dc(
 		.clk(ClkPort),
-		.btnL(BtnL),
-		.btnR(BtnR),
+		.tilt_left(tilt_left),
+		.tilt_right(tilt_right),
+		.tilt_neutral(tilt_neutral),
 		.reset(BtnC),
 		.hSync(hSync),
 		.vSync(vSync),
@@ -69,6 +91,9 @@ module vga_top(
 	assign vgaR = rgb[11 : 8];
 	assign vgaG = rgb[7  : 4];
 	assign vgaB = rgb[3  : 0];
+	assign LED[0] = tilt_left;
+	assign LED[1] = tilt_right;
+	assign LED[2] = tilt_neutral;
 	
 	// disable mamory ports
 	//assign {MemOE, MemWR, RamCS, QuadSpiFlashCS} = 4'b1111;
