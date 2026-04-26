@@ -110,11 +110,12 @@ set_property PACKAGE_PIN B12 [get_ports vSync]
 set_property PACKAGE_PIN L13 [get_ports QuadSpiFlashCS]					
 	set_property IOSTANDARD LVCMOS33 [get_ports QuadSpiFlashCS]
 
-set_property PACKAGE_PIN L18 [get_ports RamCS]					
-	set_property IOSTANDARD LVCMOS33 [get_ports RamCS]
-
-set_property PACKAGE_PIN H14 [get_ports MemOE]					
-	set_property IOSTANDARD LVCMOS33 [get_ports MemOE]
-
-set_property PACKAGE_PIN R11 [get_ports MemWR]					
-	set_property IOSTANDARD LVCMOS33 [get_ports MemWR]
+# Unused memory-control ports are not present in the top module.
+#set_property PACKAGE_PIN L18 [get_ports RamCS]
+#	set_property IOSTANDARD LVCMOS33 [get_ports RamCS]
+#
+#set_property PACKAGE_PIN H14 [get_ports MemOE]
+#	set_property IOSTANDARD LVCMOS33 [get_ports MemOE]
+#
+#set_property PACKAGE_PIN R11 [get_ports MemWR]
+#	set_property IOSTANDARD LVCMOS33 [get_ports MemWR]

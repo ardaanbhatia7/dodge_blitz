@@ -49,12 +49,14 @@ module display_controller(
 	parameter PLAYER_Y = 10'd440;
 	parameter PLAYER_STEP = 10'd10;
 	parameter BLOCK_SIZE = 10'd20;
-	parameter BLOCK_STEP = 10'd5;
-	parameter GAME_TICK_MAX = 21'd1666666;
+	parameter BLOCK_STEP = 10'd2;
+	parameter GAME_TICK_MAX = 23'd5000000;
+	parameter SPAWN_TICKS = 5'd16;
+	parameter SCORE_TICKS = 5'd20;
 	
 	reg [1:0] pix_div;
 	reg pixel_tick;
-	reg [20:0] slow_counter;
+	reg [22:0] slow_counter;
 	reg game_tick;
 	reg [9:0] player_x;
 	reg [9:0] block_x [0:7];
@@ -63,7 +65,22 @@ module display_controller(
 	reg [1:0] lives;
 	reg game_over;
 	reg [2:0] spawn_index;
+	reg [4:0] spawn_counter;
+	reg [4:0] score_counter;
+	wire [7:0] random_value;
+	wire [9:0] random_x_raw;
+	wire [9:0] random_block_x;
 	integer i;
+
+	lfsr random_block_generator(
+		.clk(clk),
+		.reset(reset),
+		.enable(game_tick && !game_over),
+		.random(random_value)
+	);
+
+	assign random_x_raw = {1'b0, random_value, 1'b0} + {2'b00, random_value};
+	assign random_block_x = (random_x_raw > SCREEN_W - BLOCK_SIZE) ? random_x_raw - 10'd160 : random_x_raw;
 
 	initial begin
 		hCount = 10'd0;
@@ -73,12 +90,14 @@ module display_controller(
 		score = 16'd0;
 		pix_div = 2'd0;
 		pixel_tick = 1'b0;
-		slow_counter = 21'd0;
+		slow_counter = 23'd0;
 		game_tick = 1'b0;
 		player_x = 10'd310;
 		lives = 2'd3;
 		game_over = 1'b0;
 		spawn_index = 3'd0;
+		spawn_counter = 5'd0;
+		score_counter = 5'd0;
 		for (i = 0; i < 8; i = i + 1)
 			begin
 			block_x[i] = 10'd0;
@@ -121,13 +140,13 @@ module display_controller(
 	wire block_on = block0_on || block1_on || block2_on || block3_on ||
 	                block4_on || block5_on || block6_on || block7_on;
 	wire life0_on = video_on && (lives > 2'd0) &&
-	                (pixel_x >= 10'd590) && (pixel_x < 10'd602) &&
+	                (pixel_x >= 10'd580) && (pixel_x < 10'd592) &&
 	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
 	wire life1_on = video_on && (lives > 2'd1) &&
-	                (pixel_x >= 10'd610) && (pixel_x < 10'd622) &&
+	                (pixel_x >= 10'd600) && (pixel_x < 10'd612) &&
 	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
 	wire life2_on = video_on && (lives > 2'd2) &&
-	                (pixel_x >= 10'd630) && (pixel_x < 10'd640) &&
+	                (pixel_x >= 10'd620) && (pixel_x < 10'd632) &&
 	                (pixel_y >= 10'd10) && (pixel_y < 10'd22);
 	wire lives_on = life0_on || life1_on || life2_on;
 		
@@ -145,12 +164,14 @@ module display_controller(
 			score <= 16'd0;
 			pix_div <= 2'd0;
 			pixel_tick <= 1'b0;
-			slow_counter <= 21'd0;
+			slow_counter <= 23'd0;
 			game_tick <= 1'b0;
 			player_x <= 10'd310;
 			lives <= 2'd3;
 			game_over <= 1'b0;
 			spawn_index <= 3'd0;
+			spawn_counter <= 5'd0;
+			score_counter <= 5'd0;
 			for (i = 0; i < 8; i = i + 1)
 				begin
 				block_x[i] <= 10'd0;
@@ -162,14 +183,14 @@ module display_controller(
 			begin
 			pix_div <= pix_div + 2'd1;
 			pixel_tick <= (pix_div == 2'd3);
-			if (slow_counter == GAME_TICK_MAX - 21'd1)
+			if (slow_counter == GAME_TICK_MAX - 23'd1)
 				begin
-				slow_counter <= 21'd0;
+				slow_counter <= 23'd0;
 				game_tick <= 1'b1;
 				end
 			else
 				begin
-				slow_counter <= slow_counter + 21'd1;
+				slow_counter <= slow_counter + 23'd1;
 				game_tick <= 1'b0;
 				end
 			
@@ -198,7 +219,13 @@ module display_controller(
 			
 			if (game_tick && !game_over)
 				begin
-				score <= score + 16'd1;
+				if (score_counter == SCORE_TICKS - 5'd1)
+					begin
+					score <= score + 16'd1;
+					score_counter <= 5'd0;
+					end
+				else
+					score_counter <= score_counter + 5'd1;
 				
 				if (btnL && (player_x >= PLAYER_STEP))
 					player_x <= player_x - PLAYER_STEP;
@@ -209,22 +236,19 @@ module display_controller(
 				else if (btnR)
 					player_x <= SCREEN_W - PLAYER_SIZE;
 				
-				if (!active[spawn_index])
+				if (spawn_counter == SPAWN_TICKS - 5'd1)
 					begin
-					active[spawn_index] <= 1'b1;
-					block_y[spawn_index] <= 10'd0;
-					case (spawn_index)
-						3'd0: block_x[spawn_index] <= 10'd30;
-						3'd1: block_x[spawn_index] <= 10'd120;
-						3'd2: block_x[spawn_index] <= 10'd210;
-						3'd3: block_x[spawn_index] <= 10'd300;
-						3'd4: block_x[spawn_index] <= 10'd390;
-						3'd5: block_x[spawn_index] <= 10'd480;
-						3'd6: block_x[spawn_index] <= 10'd560;
-						default: block_x[spawn_index] <= 10'd80;
-					endcase
+					spawn_counter <= 5'd0;
+					if (!active[spawn_index])
+						begin
+						active[spawn_index] <= 1'b1;
+						block_y[spawn_index] <= 10'd0;
+						block_x[spawn_index] <= random_block_x;
+						end
+					spawn_index <= spawn_index + 3'd1;
 					end
-				spawn_index <= spawn_index + 3'd1;
+				else
+					spawn_counter <= spawn_counter + 5'd1;
 				
 				for (i = 0; i < 8; i = i + 1)
 					begin
